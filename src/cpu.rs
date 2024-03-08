@@ -13,21 +13,21 @@ pub struct Cpu {
     // instruction lookup vector
     instructions: Vec<Instruction>,
 
-    a: u8, // accumulator
-    x: u8,
-    y: u8,
-    pc: u16, // program counter
-    sp: u8,  // stack pointer
-    status: u8,
+    pub a: u8, // accumulator
+    pub x: u8,
+    pub y: u8,
+    pub pc: u16, // program counter
+    pub sp: u8,  // stack pointer
+    pub status: u8,
 
-    fetched: u8,
-    addr_abs: u16,
-    addr_rel: u16,
-    opcode: u8,
-    cycles: u8,
+    pub fetched: u8,
+    pub addr_abs: u16,
+    pub addr_rel: u16,
+    pub opcode: u8,
+    pub cycles: u8,
 }
 
-enum Flag {
+pub enum Flag {
     C = 1 << 0, // carry bit
     Z = 1 << 1, // zero
     I = 1 << 2, // disable interrupts
@@ -57,33 +57,6 @@ impl Cpu {
         }
     }
 
-    pub fn debug(&self) {
-        print!("a: 0x{:02X}, ", self.a);
-        print!("x: 0x{:02X}, ", self.x);
-        print!("y: 0x{:02X}, ", self.y);
-        print!("pc: 0x{:04X}, ", self.pc);
-        print!("sp: 0x{:02X}, ", self.sp);
-
-        // println!("status: 0x{:02X}", self.status);
-        print!("status: ");
-        print!("{}", if self.get_flag(Flag::N) { "N" } else { "n" });
-        print!("{}", if self.get_flag(Flag::V) { "V" } else { "v" });
-        print!("-");
-        print!("{}", if self.get_flag(Flag::B) { "B" } else { "b" });
-        print!("{}", if self.get_flag(Flag::D) { "D" } else { "d" });
-        print!("{}", if self.get_flag(Flag::I) { "I" } else { "i" });
-        print!("{}", if self.get_flag(Flag::Z) { "Z" } else { "z" });
-        print!("{}", if self.get_flag(Flag::C) { "C" } else { "c" });
-        println!();
-
-        print!("addr_abs: 0x{:04X}, ", self.addr_abs);
-        println!("addr_rel: 0x{:04X}", self.addr_rel);
-
-        print!("fetched: 0x{:02X}, ", self.fetched);
-        print!("opcode: 0x{:02X}, ", self.opcode);
-        println!("cycles: {}", self.cycles);
-    }
-
     fn read(&self, address: u16) -> u8 {
         self.bus.read(address)
     }
@@ -100,7 +73,7 @@ impl Cpu {
         }
     }
 
-    fn get_flag(&self, flag: Flag) -> bool {
+    pub fn get_flag(&self, flag: Flag) -> bool {
         (self.status & (flag as u8)) != 0
     }
 
@@ -171,7 +144,6 @@ impl Cpu {
     }
 
     fn exec_opcode(&mut self, code: OpCode) -> u8 {
-        println!("exec_opcode: {:?}", code);
         match code {
             OP::ADC => self.op_adc(),
             OP::AND => self.op_and(),
@@ -241,6 +213,11 @@ impl Cpu {
 
             let instruction = self.instructions[self.opcode as usize];
             self.cycles = instruction.cycles;
+
+            println!(
+                "exec: {:?} {:?}",
+                instruction.opcode, instruction.addressing_mode
+            );
 
             let am_extra_cycle = self.set_addressing_mode(instruction.addressing_mode);
             let op_extra_cycle = self.exec_opcode(instruction.opcode);
