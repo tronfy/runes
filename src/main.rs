@@ -4,7 +4,7 @@ mod instructions;
 mod util;
 
 use pixels::{Error, Pixels, SurfaceTexture};
-use util::{draw_cpu_state, draw_guide, draw_ram, draw_text};
+use util::{draw_cpu_state, draw_disassembly, draw_guide, draw_ram};
 use winit::{
     dpi::LogicalSize,
     event::{Event, VirtualKeyCode},
@@ -34,6 +34,8 @@ fn main() -> Result<(), Error> {
     cpu.bus.write(0xFFFD, 0x80);
     cpu.reset();
     cpu.cycles = 0;
+
+    let disassembly = cpu.disassemble(0x8000 - 4, 0x8000 + 4 + program.len() as u16);
 
     let event_loop = EventLoop::new();
     let mut input = WinitInputHelper::new();
@@ -65,6 +67,8 @@ fn main() -> Result<(), Error> {
             draw_cpu_state(pixels.frame_mut(), 4, 4, WIDTH, &cpu);
 
             draw_ram(pixels.frame_mut(), 4, 74, WIDTH, &cpu);
+
+            draw_disassembly(pixels.frame_mut(), 140, 4, WIDTH, &disassembly, cpu.pc);
 
             draw_guide(pixels.frame_mut(), 4, HEIGHT - 14, WIDTH);
 
@@ -107,6 +111,7 @@ fn main() -> Result<(), Error> {
             // reset
             if input.key_pressed(VirtualKeyCode::R) {
                 cpu.reset();
+                cpu.cycles = 0;
             }
 
             window.request_redraw();

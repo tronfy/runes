@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::cpu::Flag;
 use font8x8::legacy::BASIC_LEGACY;
 use pretty_hex::*;
@@ -98,6 +100,41 @@ pub fn draw_ram(frame: &mut [u8], x: u32, y: u32, w: u32, cpu: &crate::cpu::Cpu)
 
     let v = cpu.bus.ram[0x8000..0x80FF].to_vec();
     draw_hex(frame, x, y + 50, w, v, 0x8000, 9);
+}
+
+pub fn draw_disassembly(
+    frame: &mut [u8],
+    x: u32,
+    y: u32,
+    w: u32,
+    disassembly: &HashMap<u16, String>,
+    pc: u16,
+) {
+    let mut i = 0;
+
+    let mut disassembly: Vec<_> = disassembly.iter().collect();
+    disassembly.sort_by_key(|x| x.0);
+
+    for (addr, line) in disassembly {
+        if *addr == pc {
+            draw_text_color(
+                frame,
+                x,
+                y + LINE_H * i,
+                w,
+                &line.replace(":", ""),
+                [0x77, 0xDD, 0xDD, 255],
+            );
+        } else {
+            let parts: Vec<&str> = line.split(":").collect();
+            let addr = parts[0].trim();
+            let val = parts[1].trim();
+
+            draw_text_color(frame, x, y + LINE_H * i, w, addr, [150, 150, 150, 255]);
+            draw_text(frame, x + 40, y + LINE_H * i, w, val);
+        }
+        i += 1;
+    }
 }
 
 pub fn draw_guide(frame: &mut [u8], x: u32, y: u32, w: u32) {

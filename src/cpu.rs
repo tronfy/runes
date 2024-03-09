@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     bus::Bus,
     instructions::{create_lookup_table, AddressingMode, Instruction, OpCode},
@@ -230,6 +232,98 @@ impl Cpu {
 
     pub fn complete(&self) -> bool {
         self.cycles == 0
+    }
+
+    pub fn disassemble(&self, start: u16, end: u16) -> HashMap<u16, String> {
+        let mut map = HashMap::new();
+        let mut pc = start;
+
+        while pc <= end {
+            let line_addr = pc;
+            let mut s_inst = format!("{:04X}: ", pc);
+            let opcode = self.read(pc);
+            let instruction = self.instructions[opcode as usize];
+            // s_inst.push_str(&format!("{:02X} ", opcode));
+            pc += 1;
+
+            match instruction.addressing_mode {
+                AM::IMP => s_inst.push_str(&format!("{:?}", instruction.opcode)),
+                AM::IMM => {
+                    s_inst.push_str(&format!("{:?} #{:02X}", instruction.opcode, self.read(pc)));
+                    pc += 1;
+                }
+                AM::ZP0 => {
+                    s_inst.push_str(&format!("{:?} {:02X}", instruction.opcode, self.read(pc)));
+                    pc += 1;
+                }
+                AM::ZPX => {
+                    s_inst.push_str(&format!("{:?} {:02X},X", instruction.opcode, self.read(pc)));
+                    pc += 1;
+                }
+                AM::ZPY => {
+                    s_inst.push_str(&format!("{:?} {:02X},Y", instruction.opcode, self.read(pc)));
+                    pc += 1;
+                }
+                AM::IZX => {
+                    s_inst.push_str(&format!(
+                        "{:?} ({:02X},X)",
+                        instruction.opcode,
+                        self.read(pc)
+                    ));
+                    pc += 1;
+                }
+                AM::IZY => {
+                    s_inst.push_str(&format!(
+                        "{:?} ({:02X}),Y",
+                        instruction.opcode,
+                        self.read(pc)
+                    ));
+                    pc += 1;
+                }
+                AM::ABS => {
+                    let lo = self.read(pc) as u16;
+                    pc += 1;
+                    let hi = self.read(pc) as u16;
+                    pc += 1;
+                    let addr = (hi << 8) | lo;
+                    s_inst.push_str(&format!("{:?} {:04X}", instruction.opcode, addr));
+                }
+                AM::ABX => {
+                    let lo = self.read(pc) as u16;
+                    pc += 1;
+                    let hi = self.read(pc) as u16;
+                    pc += 1;
+                    let addr = (hi << 8) | lo;
+                    s_inst.push_str(&format!("{:?} {:04X},X", instruction.opcode, addr));
+                }
+                AM::ABY => {
+                    let lo = self.read(pc) as u16;
+                    pc += 1;
+                    let hi = self.read(pc) as u16;
+                    pc += 1;
+                    let addr = (hi << 8) | lo;
+                    s_inst.push_str(&format!("{:?} {:04X},Y", instruction.opcode, addr));
+                }
+                AM::IND => {
+                    let lo = self.read(pc) as u16;
+                    pc += 1;
+                    let hi = self.read(pc) as u16;
+                    pc += 1;
+                    let addr = (hi << 8) | lo;
+                    s_inst.push_str(&format!("{:?} ({:04X})", instruction.opcode, addr));
+                }
+                AM::REL => {
+                    let offset = self.read(pc) as u16;
+                    pc += 1;
+                    let addr = pc.wrapping_add(offset);
+                    s_inst.push_str(&format!("{:?} {:04X}", instruction.opcode, addr));
+                }
+            }
+
+            map.insert(line_addr, s_inst);
+        }
+
+        map
     }
 
     // === addressing modes ===
