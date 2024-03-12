@@ -43,7 +43,7 @@ fn draw_flag_bit(frame: &mut [u8], x: u32, y: u32, w: u32, flag: char, status: b
     draw_char_color(frame, x, y, w, flag, color);
 }
 
-fn draw_flags(frame: &mut [u8], x: u32, y: u32, w: u32, cpu: &crate::cpu::Cpu) {
+fn draw_flags(frame: &mut [u8], x: u32, y: u32, w: u32, cpu: &crate::cpu::CPU) {
     draw_text(frame, x, y, w, "S:");
     draw_flag_bit(frame, x + 24, y, w, 'N', cpu.get_flag(Flag::N));
     draw_flag_bit(frame, x + 32, y, w, 'V', cpu.get_flag(Flag::V));
@@ -55,7 +55,7 @@ fn draw_flags(frame: &mut [u8], x: u32, y: u32, w: u32, cpu: &crate::cpu::Cpu) {
     draw_flag_bit(frame, x + 80, y, w, 'C', cpu.get_flag(Flag::C));
 }
 
-pub fn draw_cpu_state(frame: &mut [u8], x: u32, y: u32, w: u32, cpu: &crate::cpu::Cpu) {
+pub fn draw_cpu_state(frame: &mut [u8], x: u32, y: u32, w: u32, cpu: &crate::cpu::CPU) {
     draw_flags(frame, x, y, w, cpu);
     draw_text(frame, x, y + LINE_H * 1, w, &format!("A: {:02X}", cpu.a));
     draw_text(frame, x, y + LINE_H * 2, w, &format!("X: {:02X}", cpu.x));
@@ -94,7 +94,7 @@ pub fn draw_hex(frame: &mut [u8], x: u32, y: u32, w: u32, v: Vec<u8>, offset: us
     }
 }
 
-pub fn draw_ram(frame: &mut [u8], x: u32, y: u32, w: u32, cpu: &crate::cpu::Cpu) {
+pub fn draw_ram(frame: &mut [u8], x: u32, y: u32, w: u32, cpu: &crate::cpu::CPU) {
     let v = cpu.bus.ram[0x0000..0x00FF].to_vec();
     draw_hex(frame, x, y, w, v, 0, 4);
 

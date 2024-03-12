@@ -9,7 +9,7 @@ type AM = AddressingMode;
 type OP = OpCode;
 
 /// emulated 6502/2A03 CPU
-pub struct Cpu {
+pub struct CPU {
     pub bus: Bus,
 
     // instruction lookup vector
@@ -26,7 +26,7 @@ pub struct Cpu {
     pub addr_abs: u16,
     pub addr_rel: u16,
     pub opcode: u8,
-    pub cycles: u8,
+    pub cycles_left: u8,
 }
 
 pub enum Flag {
@@ -40,10 +40,10 @@ pub enum Flag {
     N = 1 << 7, // negative
 }
 
-impl Cpu {
-    pub fn new() -> Cpu {
-        Cpu {
-            bus: Bus::new(),
+impl CPU {
+    pub fn new(bus: Bus) -> CPU {
+        CPU {
+            bus,
             instructions: create_lookup_table(),
             a: 0,
             x: 0,
@@ -55,7 +55,7 @@ impl Cpu {
             addr_abs: 0,
             addr_rel: 0,
             opcode: 0,
-            cycles: 0,
+            cycles_left: 0,
         }
     }
 
@@ -95,7 +95,7 @@ impl Cpu {
         self.addr_abs = 0;
         self.fetched = 0;
 
-        self.cycles = 8;
+        self.cycles_left = 8;
     }
 
     fn _interrupt(&mut self, addr: u16, cycles: u8) {
@@ -115,7 +115,7 @@ impl Cpu {
         let hi = self.read(self.addr_abs + 1) as u16;
         self.pc = (hi << 8) | lo;
 
-        self.cycles = cycles;
+        self.cycles_left = cycles;
     }
 
     fn irq(&mut self) {
@@ -209,29 +209,24 @@ impl Cpu {
     }
 
     pub fn clock(&mut self) {
-        if self.cycles == 0 {
+        if self.cycles_left == 0 {
             self.opcode = self.read(self.pc);
             self.pc += 1;
 
             let instruction = self.instructions[self.opcode as usize];
-            self.cycles = instruction.cycles;
-
-            println!(
-                "exec: {:?} {:?}",
-                instruction.opcode, instruction.addressing_mode
-            );
+            self.cycles_left = instruction.cycles;
 
             let am_extra_cycle = self.set_addressing_mode(instruction.addressing_mode);
             let op_extra_cycle = self.exec_opcode(instruction.opcode);
 
-            self.cycles += am_extra_cycle & op_extra_cycle;
+            self.cycles_left += am_extra_cycle & op_extra_cycle;
         }
 
-        self.cycles -= 1;
+        self.cycles_left -= 1;
     }
 
     pub fn complete(&self) -> bool {
-        self.cycles == 0
+        self.cycles_left == 0
     }
 
     pub fn disassemble(&self, start: u16, end: u16) -> HashMap<u16, String> {
@@ -243,7 +238,6 @@ impl Cpu {
             let mut s_inst = format!("{:04X}: ", pc);
             let opcode = self.read(pc);
             let instruction = self.instructions[opcode as usize];
-            // s_inst.push_str(&format!("{:02X} ", opcode));
             pc += 1;
 
             match instruction.addressing_mode {
@@ -477,13 +471,13 @@ impl Cpu {
         1
     }
 
-    fn _op_bc_flag(&mut self, flag: Flag, value: bool) -> u8 {
+    fn _op_branch_on_flag(&mut self, flag: Flag, value: bool) -> u8 {
         if self.get_flag(flag) == value {
-            self.cycles += 1;
+            self.cycles_left += 1;
             self.addr_abs = self.pc.wrapping_add(self.addr_rel);
 
             if (self.addr_abs & 0xFF00) != (self.pc & 0xFF00) {
-                self.cycles += 1;
+                self.cycles_left += 1;
             }
 
             self.pc = self.addr_abs;
@@ -492,35 +486,35 @@ impl Cpu {
     }
 
     fn op_bcs(&mut self) -> u8 {
-        self._op_bc_flag(Flag::C, true)
+        self._op_branch_on_flag(Flag::C, true)
     }
 
     fn op_bcc(&mut self) -> u8 {
-        self._op_bc_flag(Flag::C, false)
+        self._op_branch_on_flag(Flag::C, false)
     }
 
     fn op_beq(&mut self) -> u8 {
-        self._op_bc_flag(Flag::Z, true)
-    }
-
-    fn op_bmi(&mut self) -> u8 {
-        self._op_bc_flag(Flag::N, true)
+        self._op_branch_on_flag(Flag::Z, true)
     }
 
     fn op_bne(&mut self) -> u8 {
-        self._op_bc_flag(Flag::Z, false)
+        self._op_branch_on_flag(Flag::Z, false)
+    }
+
+    fn op_bmi(&mut self) -> u8 {
+        self._op_branch_on_flag(Flag::N, true)
     }
 
     fn op_bpl(&mut self) -> u8 {
-        self._op_bc_flag(Flag::N, false)
-    }
-
-    fn op_bvc(&mut self) -> u8 {
-        self._op_bc_flag(Flag::V, false)
+        self._op_branch_on_flag(Flag::N, false)
     }
 
     fn op_bvs(&mut self) -> u8 {
-        self._op_bc_flag(Flag::V, true)
+        self._op_branch_on_flag(Flag::V, true)
+    }
+
+    fn op_bvc(&mut self) -> u8 {
+        self._op_branch_on_flag(Flag::V, false)
     }
 
     fn _op_set_flag(&mut self, flag: Flag, value: bool) -> u8 {
@@ -567,6 +561,7 @@ impl Cpu {
 
         let value = self.fetched as u16 ^ 0x00FF;
 
+        // add (!) in 16-bit space so we can detect overflow
         let temp: u16 = self.a as u16 + value + self.get_flag(Flag::C) as u16;
 
         self.set_flag(Flag::C, temp & 0xFF00 != 0);

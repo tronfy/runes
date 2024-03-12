@@ -17,7 +17,8 @@ const WIDTH: u32 = 256;
 const HEIGHT: u32 = 240;
 
 fn main() -> Result<(), Error> {
-    let mut cpu = cpu::Cpu::new();
+    let bus = bus::Bus::new();
+    let mut cpu = cpu::CPU::new(bus);
 
     let program = vec![
         0xA2, 0x0A, 0x8E, 0x00, 0x00, 0xA2, 0x03, 0x8E, 0x01, 0x00, 0xAC, 0x00, 0x00, 0xA9, 0x00,
@@ -33,7 +34,7 @@ fn main() -> Result<(), Error> {
     cpu.bus.write(0xFFFC, 0x00);
     cpu.bus.write(0xFFFD, 0x80);
     cpu.reset();
-    cpu.cycles = 0;
+    cpu.cycles_left = 0;
 
     let disassembly = cpu.disassemble(0x8000 - 4, 0x8000 + 4 + program.len() as u16);
 
@@ -111,7 +112,7 @@ fn main() -> Result<(), Error> {
             // reset
             if input.key_pressed(VirtualKeyCode::R) {
                 cpu.reset();
-                cpu.cycles = 0;
+                cpu.cycles_left = 0;
             }
 
             window.request_redraw();
